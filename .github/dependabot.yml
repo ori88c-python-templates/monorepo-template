@@ -7,6 +7,10 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    # githubkit 0.17 requires hishel>=1.4,<2. A major bump is unresolvable.
+    ignore:
+      - dependency-name: "hishel"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
