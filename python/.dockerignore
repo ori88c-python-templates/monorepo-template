@@ -1,0 +1,14 @@
+# Context root is python/. Docker reads this file only from here.
+
+.venv
+**/.venv
+_templates
+**/tests
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.import_linter_cache
+**/.coverage
+**/htmlcov

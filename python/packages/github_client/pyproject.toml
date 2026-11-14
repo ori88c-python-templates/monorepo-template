@@ -1,0 +1,27 @@
+[project]
+name = "github-client"
+version = "1.0.0"
+description = "GitHub client and adapter. Not for every app: the githubkit dependency stays here."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "MIT"
+dependencies = [
+    "githubkit~=0.17.1",
+    # githubkit 0.17 runs on httpx2 when it is installed and falls back to legacy
+    # httpx with a deprecation warning otherwise. Pin the preferred path so the
+    # SDK, and the MockTransport the tests hand it, use one library everywhere.
+    "hishel[async,httpx2]~=1.4.0",
+    "httpx2~=2.16.0",
+    "shared-config",
+    "structlog~=26.1.0",
+]
+
+[tool.uv.sources]
+shared-config = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "github_client"

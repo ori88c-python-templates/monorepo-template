@@ -1,0 +1,21 @@
+---
+description: Module filenames name the concept, readable without their directory
+globs: python/**/*.py
+alwaysApply: false
+---
+
+# File naming
+
+A filename must identify what is in the file without the directory. Grep, tracebacks, and editor tabs show the basename alone.
+
+```text
+GOOD  routes/k8s_probe_router.py     services/report/csv_report_writer.py
+BAD   routes/router.py               services/report/writer.py
+```
+
+- `snake_case`. A hyphenated module cannot be imported.
+- Repeat the concept even when the directory already states it.
+- No catch-all modules: `utils.py`, `helpers.py`, `common.py`, `misc.py`.
+- One primary export, named after the file: `csv_report_writer.py` exports `CsvReportWriter`. A package `__init__.py` is the exception: it re-exports what other packages import.
+
+Where a package or a layer sits is in that template's `architecture.mdc`, not here.

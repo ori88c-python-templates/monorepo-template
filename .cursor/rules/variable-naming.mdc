@@ -1,0 +1,62 @@
+---
+description: Dicts are value_by_key; sorted lists use asc_by_/desc_by_; for-headers stay a short name
+globs: python/**/*.py,scaffold_scripts/**/*.py,ci_scripts/**/*.py
+alwaysApply: false
+---
+
+# Variable naming
+
+A name states the hidden assumption: what a dict maps, which way a list is ordered, and what a loop walks. Filenames are `file-naming.mdc`.
+
+## Dicts
+
+An open-ended lookup is `<value>_by_<key>`. `_KIND_BY_DIR` in `ci_scripts` is this shape.
+
+```python
+# BAD - the key and the value are both hidden
+_OPENERS = {"members": "[[tool.uv.workspace]]"}
+mapped_names = packages_distributions()
+reverse = {name: set() for name in nodes}
+
+# GOOD
+opener_by_array = {"members": "[[tool.uv.workspace]]"}
+dist_names_by_import = packages_distributions()
+account_ids_by_tenant: dict[str, list[str]] = {}
+```
+
+Protocol and document dicts keep the contract name: HTTP `headers`, structlog `event_dict`, SQLAlchemy `connect_args`, a TOML table, an OpenAPI object, a JSON fixture, a process `env` overlay.
+
+## Sorted lists
+
+A named sorted collection ends in `asc_by_<field>` or `desc_by_<field>`.
+
+```python
+# BAD
+accounts = sorted(rows, key=lambda row: row.last_updated)
+
+# GOOD
+accounts_asc_by_last_updated = sorted(rows, key=lambda row: row.last_updated)
+```
+
+A one-shot comparison (`assert stars == sorted(stars, reverse=True)`) is not a named collection. When the next line returns the name, keep the assignment and mark that return `# noqa: RET504`.
+
+## For and async for
+
+The iterable in the header is a short name. Assign first when the header hides a sort, a filter, an await, a generator, or a chained call.
+
+```python
+# BAD
+for account in sorted(await fetch_accounts()):
+    ...
+
+# GOOD
+accounts_asc_by_name = sorted(await fetch_accounts())
+for account in accounts_asc_by_name:
+    ...
+
+accounts_generator = client.stream_accounts()
+async for account in accounts_generator:
+    ...
+```
+
+Keep `for account in accounts`, `for key, value in account_ids_by_tenant.items()`, a short helper (`iter_files(root)`), a two- or three-item tuple, and `enumerate(rows)`. An async iterable uses a `_generator` suffix.

@@ -1,0 +1,81 @@
+# routes
+
+FastAPI routers: the application's HTTP surface.
+
+## Table of Contents
+
+- [Belongs here](#belongs-here)
+- [Does not belong here](#does-not-belong-here)
+- [Dependency injection](#dependency-injection)
+- [OpenAPI](#openapi)
+- [Unhandled errors](#unhandled-errors)
+- [Sibling independence](#sibling-independence)
+
+## Belongs here
+
+- One `APIRouter` per resource, in a file named after that resource, as a sibling
+  under `routes/` (`feature_flag_router.py`, `k8s_probe_router.py`). Nest a router
+  domain only when that domain grows a second module.
+- Path operation functions, their status codes, and their `response_model` declarations.
+
+Callers outside this package import from [`__init__.py`](__init__.py):
+`from app.routes import feature_flag_router, k8s_probe_router, RouteLogger`. A router
+module still imports `RouteLogger` from `route_child_logger.py` by module path; importing
+`from app.routes import RouteLogger` inside a router would cycle.
+
+## Does not belong here
+
+- Business logic. A route should validate its input, call a service, and shape the result. If a
+  handler is growing branches, the logic belongs in a service.
+- Direct database or cache access. Routes talk to services; services talk to resources.
+- Request and response schemas — those live in [`models/`](../models/README.md).
+
+## Dependency injection
+
+Routes get their dependencies through FastAPI's `Depends`, resolved against the accessors in
+[`state/`](../state/README.md). A handler never constructs a service, reaches for a global, or
+builds its own logger.
+
+### Route loggers
+
+If a route logs, the logger is a `RouteLogger` argument from
+[`route_child_logger.py`](route_child_logger.py). That is the only way a handler may log: no
+`get_child_logger` inside the function, no module-level logger, no grabbing `LogManager` off
+state. Services still receive a constructor-injected logger named after the service; the same
+request can therefore emit two `context` values with one `correlation_id`.
+
+### Caller headers
+
+Feature-flag handlers also take `UserDetails` from `Depends(get_user_details)`.
+That dependency binds `tenant_id` and `user_id` for the request, then the
+handler passes the object into the service method. Do not add middleware for
+those headers.
+
+Liveness stays dependency-free and does not log. Readiness takes the request,
+reads clients from application state, and pings Redis and Postgres. Probe paths
+come from `shared_config` (`LIVEZ_ENDPOINT`, `READYZ_ENDPOINT`).
+
+## OpenAPI
+
+`summary=` and `description=` on the path decorator are the public contract shown
+in `/docs`. The handler's Google docstring is for developers reading the code and
+is not copied into OpenAPI.
+
+Keep `name=` for [`RouteLogger`](route_child_logger.py); set `operation_id=`
+separately so Swagger does not display the log name.
+
+Kubernetes probes stay mounted for kubelet in every environment. They are omitted
+from the schema when `ENV` is `staging` or `prod`.
+
+## Unhandled errors
+
+Anything the handler does not turn into `HTTPException` (Postgres, Redis, network)
+becomes Starlette's generic `500 Internal Server Error`. Do not wrap it as
+`HTTPException(500, detail=str(exc))`: that would put driver messages in the body.
+
+## Sibling independence
+
+Routers under `routes/` are siblings and must not import each other. A shared
+path or header name moves down, not sideways: probe and metrics paths live in
+`shared_config`, request-id headers in `shared_middlewares`.
+

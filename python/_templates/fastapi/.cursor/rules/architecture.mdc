@@ -1,0 +1,25 @@
+---
+description: FastAPI layers, import direction, and where routers and services live
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Architecture
+
+Imports point down, never up.
+
+```text
+routes/        HTTP routers
+   |
+state/         typed AppState and request accessors
+   |
+services/      business logic owned by this app
+```
+
+Redis, Postgres, logging, HTTP middleware, and Prometheus live in shared packages. `feature_flags_db` owns the table. This app does not grow `clients/`, `logger/`, or `middlewares/` for those.
+
+A route calls a service. A service calls an injected client. `lifecycle/` is the only package that imports every layer. `state/` sits under the HTTP layer so a router can `Depends` on an accessor without importing `lifecycle/`. `models/`, `config/`, and `metrics/` are cross-cutting: any layer may import them, and they import no layer. Tenant and user headers live in `config/app_consts.py`. Probe and metrics paths come from `shared_config`. Request-id headers come from `shared_middlewares`.
+
+Routers are siblings under `routes/` (`feature_flag_router.py`). Nest a router domain only when that domain grows a second module. Schemas live in `models/`, not beside the router. Services and models keep a subdirectory per domain from the start (`feature_flag_service.py`, `feature_flag_errors.py`).
+
+Never break a cycle with a function-local or `TYPE_CHECKING` import. A package's `__init__.py` re-exports what other packages import. Modules inside the package import siblings by module path, not through that barrel.

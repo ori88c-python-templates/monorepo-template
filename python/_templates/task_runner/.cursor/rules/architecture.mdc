@@ -1,0 +1,31 @@
+---
+description: Task-runner layers. The runner stays thin. Clients stay in packages.
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Architecture
+
+`main` awaits `task_runner.run()` inside `async with lifecycle.create_task_runner()`. Business logic does not go in `main`.
+
+Imports point down, never up.
+
+```text
+lifecycle/       builds and starts AppState, yields TaskRunner, tears down
+   |
+task_runner/     which services run, in which order
+   |
+state/           typed AppState; TaskRunner receives AppServices only
+   |
+services/        business logic owned by this app
+```
+
+`github_client` supplies `GithubClient` and `GithubAdapter`. Logging is `shared_log_manager`. The installed version is `shared_distribution`. This app does not grow `clients/`, `logger/`, or `distribution/` for those.
+
+`TaskRunner` calls a service. A service does not call a client. Only `lifecycle/` constructs `TaskRunner`. The runner stays thin: data transformation, retries, or I/O there means a service is missing. `lifecycle/` is the only package that imports every layer. `config/` is cross-cutting.
+
+`LifecycleManager.__init__` does not grow a parameter per setting. Deployment values stay on the config model. The constructor seams that are not settings are the log `stream` and a client test double such as `github`.
+
+A service this app owns keeps a subdirectory per domain (`services/report/csv_report_writer.py`). `lifecycle/` and `task_runner/` stay flat.
+
+Never break a cycle with a function-local or `TYPE_CHECKING` import. A package's `__init__.py` re-exports what other packages import. Modules inside the package import siblings by module path.

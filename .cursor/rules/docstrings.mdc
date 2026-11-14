@@ -1,0 +1,28 @@
+---
+description: Google-style docstrings on every module, class, and function
+globs: python/**/*.py
+alwaysApply: false
+---
+
+# Docstrings
+
+Every module, class, and function gets a Google-style docstring, including `__init__` and private helpers.
+
+One-line imperative summary, blank line, then whichever of `Args:`, `Returns:`, `Raises:`, `Yields:`, or `Attributes:` apply.
+
+```python
+def get_child_logger(self, name: str) -> FilteringBoundLogger:
+    """Create a logger that tags every record it emits with ``name``.
+
+    Args:
+        name: Component that will own the logger, e.g. ``"UsersService"``. Bound to
+            the ``context`` key.
+
+    Returns:
+        A bound logger sharing this manager's processors and minimum level.
+    """
+```
+
+Say why, not what. The signature already gives names and types. Omit a section rather than restating it (`"""Args: name: The name."""` is worse than nothing).
+
+Pydantic models document fields in a class-level `Attributes:` block, not per-field comments. Reference code with double backticks. Wrap at 100 columns.

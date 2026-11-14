@@ -1,0 +1,13 @@
+---
+description: FastMCP Redis tests and the in-process MCP client
+globs: tests/**/*.py
+alwaysApply: false
+---
+
+# FastMCP tests
+
+Layout, the ban on patching, and the shared log fixture are in the root tests rule.
+
+`throwaway_stores` lives in `tests/conftest.py` and is not autouse. Unit tests never request it. Integration talks to Redis through that fixture. End-to-end is HTTP through the real app against the same store. MCP primitives use `open_mcp_client` in `tests/e2e/mcp_primitives/conftest.py`, which speaks streamable HTTP to that app in-process.
+
+Pytest 9 rejects `pytest_plugins` in a nested conftest, so the container fixture stays in the root conftest. A later service or registrator reuses it instead of starting another container. `tests/unit/conftest.py` owns one `redis_client` (`AsyncMock(spec=RedisClient)`) for every unit service and route test. Do not construct a second one.

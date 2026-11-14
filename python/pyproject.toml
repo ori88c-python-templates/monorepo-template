@@ -1,0 +1,223 @@
+[project]
+name = "monorepo-template"
+version = "1.0.0"
+description = "Production-grade Python monorepo template built around dependency injection and zero global state. FastAPI, FastMCP, and task-runner blueprints share one workspace; structured logging, Prometheus, Kubernetes probes, and Alembic are written once."
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi-middlewares",
+    "feature-flags-db",
+    "github-client",
+    "shared-config",
+    "shared-distribution",
+    "shared-log-manager",
+    "shared-middlewares",
+    "shared-postgres",
+    "shared-prometheus",
+    "shared-redis",
+]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[tool.uv.sources]
+fastapi-middlewares = { workspace = true }
+feature-flags-db = { workspace = true }
+github-client = { workspace = true }
+shared-distribution = { workspace = true }
+shared-config = { workspace = true }
+shared-log-manager = { workspace = true }
+shared-middlewares = { workspace = true }
+shared-postgres = { workspace = true }
+shared-prometheus = { workspace = true }
+shared-redis = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "packages/config",
+    "packages/middlewares",
+    "packages/fastapi_middlewares",
+    "packages/log_manager",
+    "packages/redis",
+    "packages/postgres",
+    "packages/prometheus",
+    "packages/feature_flags_db",
+    "packages/github_client",
+    "packages/distribution",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter~=2.16.0",
+    "pre-commit~=4.7.0",
+    "pytest~=9.2.0",
+    "pytest-asyncio~=1.5.0",
+    "pyright~=1.1.414",
+    "ruff~=0.17.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "packages/config/tests",
+    "packages/middlewares/tests",
+    "packages/fastapi_middlewares/tests",
+    "packages/log_manager/tests",
+    "packages/redis/tests",
+    "packages/postgres/tests",
+    "packages/prometheus/tests",
+    "packages/feature_flags_db/tests",
+    "packages/github_client/tests",
+    "packages/distribution/tests",
+]
+pythonpath = ["packages/github_client/tests/fakes"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: a client against a real external API",
+]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["_templates"]
+src = [
+    "packages/config/src",
+    "packages/config/tests",
+    "packages/middlewares/src",
+    "packages/middlewares/tests",
+    "packages/fastapi_middlewares/src",
+    "packages/fastapi_middlewares/tests",
+    "packages/log_manager/src",
+    "packages/log_manager/tests",
+    "packages/redis/src",
+    "packages/redis/tests",
+    "packages/postgres/src",
+    "packages/postgres/tests",
+    "packages/prometheus/src",
+    "packages/prometheus/tests",
+    "packages/feature_flags_db/src",
+    "packages/feature_flags_db/tests",
+    "packages/feature_flags_db/alembic",
+    "packages/github_client/src",
+    "packages/github_client/tests",
+    "packages/distribution/src",
+    "packages/distribution/tests",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W",        # pyflakes, pycodestyle
+    "I",                  # isort
+    "N",                  # pep8-naming
+    "D",                  # pydocstyle
+    "UP",                 # pyupgrade
+    "ANN",                # flake8-annotations
+    "S",                  # flake8-bandit
+    "B",                  # flake8-bugbear
+    "A",                  # flake8-builtins
+    "C4",                 # flake8-comprehensions
+    "DTZ",                # flake8-datetimez
+    "T20",                # flake8-print
+    "PT",                 # flake8-pytest-style
+    "RET", "SIM", "ARG",  # returns, simplify, unused arguments
+    "PTH",                # use pathlib
+    "ERA",                # commented-out code
+    "PL", "TRY", "RUF",
+]
+# Deliberately not selected: Q and COM conflict with the formatter; TC moves annotations into
+# TYPE_CHECKING blocks, which breaks Pydantic's runtime evaluation of them; EM forces every
+# exception message into a temporary variable.
+ignore = [
+    "ANN401",  # Any is legitimate for **kwargs forwarded to json.dumps
+    "TRY003",  # long, specific exception messages are worth more than the rule
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "fastapi_middlewares",
+    "github_client",
+    "shared_config",
+    "shared_distribution",
+    "shared_log_manager",
+    "shared_middlewares",
+    "shared_postgres",
+    "shared_prometheus",
+    "shared_redis",
+    "feature_flags_db",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Config models use ALL_CAPS members by convention, including the DSN properties.
+"packages/config/src/shared_config/**/*.py" = ["N802"]
+# Tests assert, shell out to a real interpreter, compare against literals, and raise inline to
+# produce a genuine traceback rather than abstracting the raise away (TRY301).
+"packages/config/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/middlewares/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/fastapi_middlewares/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/log_manager/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/redis/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/postgres/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/prometheus/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/feature_flags_db/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+"packages/github_client/tests/**/*.py" = ["S101", "S105", "S106", "S603", "PLR2004", "TRY301"]
+"packages/feature_flags_db/alembic/versions/*.py" = ["D", "ANN", "UP", "I"]
+"packages/distribution/tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+
+[tool.pyright]
+pythonVersion = "3.14"
+include = [
+    "packages/config/src",
+    "packages/config/tests",
+    "packages/middlewares/src",
+    "packages/middlewares/tests",
+    "packages/fastapi_middlewares/src",
+    "packages/fastapi_middlewares/tests",
+    "packages/log_manager/src",
+    "packages/log_manager/tests",
+    "packages/redis/src",
+    "packages/redis/tests",
+    "packages/postgres/src",
+    "packages/postgres/tests",
+    "packages/prometheus/src",
+    "packages/prometheus/tests",
+    "packages/feature_flags_db/src",
+    "packages/feature_flags_db/tests",
+    "packages/feature_flags_db/alembic",
+    "packages/github_client/src",
+    "packages/github_client/tests",
+    "packages/distribution/src",
+    "packages/distribution/tests",
+]
+extraPaths = [
+    "packages/config/src",
+    "packages/middlewares/src",
+    "packages/fastapi_middlewares/src",
+    "packages/log_manager/src",
+    "packages/redis/src",
+    "packages/postgres/src",
+    "packages/prometheus/src",
+    "packages/prometheus/tests",
+    "packages/feature_flags_db/src",
+    "packages/github_client/src",
+    "packages/distribution/src",
+    "packages/distribution/tests",
+]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = true
+
+# Every app imports a top-level ``tests`` package. A shared extra path would
+# make one app's tests resolve inside another. ``add_app.py`` appends one
+# environment per app that adds only that app's directory. Source imports
+# still use the extraPaths above.
+[[tool.pyright.executionEnvironments]]
+root = "packages/github_client/tests"
+extraPaths = ["packages/github_client/src", "packages/github_client/tests/fakes"]

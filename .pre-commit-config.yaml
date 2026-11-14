@@ -1,0 +1,69 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --directory python ruff format --check .
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --directory python ruff check .
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pyright
+        name: pyright
+        entry: uv run --directory python pyright
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-format-ci-scripts
+        name: ruff format ci_scripts
+        entry: uv run --directory ci_scripts --project ../python ruff format --check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check-ci-scripts
+        name: ruff check ci_scripts
+        entry: uv run --directory ci_scripts --project ../python ruff check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pyright-ci-scripts
+        name: pyright ci_scripts
+        entry: uv run --directory ci_scripts --project ../python pyright
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-format-scaffold-scripts
+        name: ruff format scaffold_scripts
+        entry: uv run --directory scaffold_scripts --project ../python ruff format --check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ruff-check-scaffold-scripts
+        name: ruff check scaffold_scripts
+        entry: uv run --directory scaffold_scripts --project ../python ruff check
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pyright-scaffold-scripts
+        name: pyright scaffold_scripts
+        entry: uv run --directory scaffold_scripts --project ../python pyright
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: lint-imports
+        name: lint-imports
+        entry: uv run --directory python python ../ci_scripts/lint_app_imports.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: uv-audit
+        name: uv audit
+        entry: uv --directory python audit --locked --preview-features audit-command
+        language: system
+        pass_filenames: false
+        always_run: true

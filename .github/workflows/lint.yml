@@ -1,0 +1,65 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          save-cache: false
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: ruff check
+        working-directory: python
+        run: uv run ruff check .
+
+      - name: ruff format
+        working-directory: python
+        run: uv run ruff format --check .
+
+      - name: pyright
+        working-directory: python
+        run: uv run pyright
+
+      - name: lint-imports
+        working-directory: python
+        run: uv run python ../ci_scripts/lint_app_imports.py
+
+      - name: ruff check ci_scripts
+        run: uv run --directory ci_scripts --project ../python ruff check
+
+      - name: ruff format ci_scripts
+        run: uv run --directory ci_scripts --project ../python ruff format --check
+
+      - name: pyright ci_scripts
+        run: uv run --directory ci_scripts --project ../python pyright
+
+      - name: ruff check scaffold_scripts
+        run: uv run --directory scaffold_scripts --project ../python ruff check
+
+      - name: ruff format scaffold_scripts
+        run: uv run --directory scaffold_scripts --project ../python ruff format --check
+
+      - name: pyright scaffold_scripts
+        run: uv run --directory scaffold_scripts --project ../python pyright

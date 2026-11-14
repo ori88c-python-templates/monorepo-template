@@ -1,0 +1,26 @@
+---
+description: FastMCP layers, sibling HTTP surfaces, and import direction
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Architecture
+
+Imports point down, never up.
+
+```text
+http_routes/  mcp_primitives/
+   siblings: neither imports the other
+   |
+state/         typed AppState and request accessors
+   |
+services/      business logic owned by this app
+```
+
+Redis is `shared_redis`. Logging is `shared_log_manager`. HTTP middleware is `shared_middlewares`. Prometheus is `shared_prometheus`. This app does not grow `middlewares/`, `prometheus/`, `clients/`, `logger/`, or `distribution/` for those.
+
+A registrator calls a service. A service calls an injected client. Registration goes through `register_<feature>` only. See `registrator-funcs.mdc`. `lifecycle/` is the only package that imports every layer. `state/` sits under the HTTP layer so a handler can use an accessor without importing `lifecycle/`. `models/`, `config/`, and `metrics/` are cross-cutting.
+
+`http_routes/` holds `register_<feature>.py` for custom HTTP routes. `mcp_primitives/` holds `register_<feature>.py` for tools, resources, and prompts. A feature that needs both gets one registrator in each package, and the packages do not import each other.
+
+Never break a cycle with a function-local or `TYPE_CHECKING` import. A package's `__init__.py` re-exports what other packages import. Modules inside the package import siblings by module path.

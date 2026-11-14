@@ -1,0 +1,23 @@
+---
+description: FastMCP HTTP route loggers and per-feature MCP loggers
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# FastMCP logging
+
+Injected loggers and the event-name style are in the root logging rule. This file is only the HTTP and MCP surface.
+
+If a custom HTTP route logs, call `get_http_route_logger(request)`. Do not call `get_child_logger` in the handler. The helper names the child after `custom_route(..., name=)`. Set `name=` explicitly.
+
+```python
+@mcp.custom_route("/readyz", methods=["GET"], name="k8s-probe-router.ready")
+async def readiness_probe(request: Request) -> JSONResponse:
+    get_http_route_logger(request).info("readiness.probe")
+```
+
+An MCP primitive does not take a logger `Depends` and does not use `get_http_route_logger`. The service's constructor logger is enough for a typical tool. When a primitive itself must log, declare a frozen slotted `<Feature>McpLoggers` in that feature's `register_<feature>.py`, one attribute per primitive that logs. `LifecycleManager` builds it and passes it in. Do not add a package-wide loggers module.
+
+`get_user_details` binds `tenant_id` and `user_id` with `bound_contextvars` for the call. Do not pass those on each `info()`.
+
+Uncaught errors are the `uvicorn`, `asyncio`, `sys.excepthook`, and `fastmcp` children. Install those bridges from `main` via `LifecycleManager.install_process_logging`, not from `create_app`. Do not call `install_stdlib_log_bridge`.

@@ -1,0 +1,156 @@
+[project]
+name = "fastapi-template"
+version = "1.0.0"
+description = "Production-grade FastAPI blueprint built around dependency injection and zero global state. Structured JSON logging, Prometheus metrics, Kubernetes probes, Alembic migrations, and separate unit, integration, and e2e tests are built in. Import package app. The installed app renames it."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi~=0.162.7",
+    "feature-flags-db",
+    "fastapi-middlewares",
+    "prometheus-client~=0.26.0",
+    "shared-config",
+    "shared-distribution",
+    "shared-log-manager",
+    "shared-middlewares",
+    "shared-postgres",
+    "shared-prometheus",
+    "shared-redis",
+    "uvicorn[standard]~=0.54.0",
+]
+
+[project.scripts]
+app = "app.main:main"
+
+[tool.monorepo]
+type = "fastapi"
+
+[dependency-groups]
+dev = [
+    "httpx~=0.28.1",
+    "pytest~=9.2.0",
+    "pytest-asyncio~=1.5.0",
+    "testcontainers~=4.15.0",
+]
+
+[tool.uv.sources]
+fastapi-middlewares = { path = "../../packages/fastapi_middlewares" }
+feature-flags-db = { path = "../../packages/feature_flags_db" }
+shared-config = { path = "../../packages/config" }
+shared-distribution = { path = "../../packages/distribution" }
+shared-log-manager = { path = "../../packages/log_manager" }
+shared-middlewares = { path = "../../packages/middlewares" }
+shared-postgres = { path = "../../packages/postgres" }
+shared-prometheus = { path = "../../packages/prometheus" }
+shared-redis = { path = "../../packages/redis" }
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: talks to Redis and PostgreSQL via Testcontainers",
+    "e2e: HTTP through the real app against Testcontainers",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "ANN",
+    "S",
+    "B",
+    "A",
+    "C4",
+    "DTZ",
+    "T20",
+    "PT",
+    "RET", "SIM", "ARG",
+    "PTH",
+    "ERA",
+    "PL", "TRY", "RUF",
+]
+ignore = [
+    "ANN401",
+    "TRY003",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "app",
+    "fastapi_middlewares",
+    "feature_flags_db",
+    "shared_config",
+    "shared_distribution",
+    "shared_log_manager",
+    "shared_middlewares",
+    "shared_postgres",
+    "shared_prometheus",
+    "shared_redis",
+    "tests",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/app/config/*.py" = ["N802"]
+"tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]
+
+[tool.pyright]
+pythonVersion = "3.14"
+include = ["src", "tests"]
+extraPaths = ["src", "."]
+venvPath = "../../"
+venv = ".venv"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = true
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The app is a one-directional stack"
+type = "layers"
+exhaustive = true
+containers = ["app"]
+layers = [
+    "main",
+    "lifecycle",
+    "routes",
+    "state",
+    "services",
+    "models",
+    "metrics",
+    "config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing below the HTTP layer knows the web framework"
+type = "forbidden"
+source_modules = [
+    "app.services",
+    "app.metrics",
+    "app.config",
+]
+forbidden_modules = ["fastapi", "starlette"]

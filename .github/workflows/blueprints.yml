@@ -1,0 +1,97 @@
+name: Blueprints
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "python/_templates/**"
+      - "python/packages/**"
+      - "scaffold_scripts/**"
+      - "python/pyproject.toml"
+      - "python/uv.lock"
+      - "python/.python-version"
+      - ".github/workflows/blueprints.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "python/_templates/**"
+      - "python/packages/**"
+      - "scaffold_scripts/**"
+      - "python/pyproject.toml"
+      - "python/uv.lock"
+      - "python/.python-version"
+      - ".github/workflows/blueprints.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  select:
+    name: Select
+    runs-on: ubuntu-24.04
+    outputs:
+      categories: ${{ steps.categories.outputs.categories }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+
+      - name: List blueprint categories
+        id: categories
+        run: uv run --no-project python ci_scripts/list_blueprints.py --repo-root . --github-output "$GITHUB_OUTPUT"
+
+  blueprint:
+    name: Blueprint ${{ matrix.category }}
+    needs: select
+    if: needs.select.outputs.categories != '[]'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        category: ${{ fromJson(needs.select.outputs.categories) }}
+    env:
+      APP: smoke_${{ matrix.category }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          save-cache: false
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: Scaffold the app
+        working-directory: python
+        run: uv run python ../scaffold_scripts/add_app.py ${{ matrix.category }} "$APP"
+
+      - name: ruff check
+        working-directory: python
+        run: uv run ruff check "apps/$APP"
+
+      - name: ruff format
+        working-directory: python
+        run: uv run ruff format --check "apps/$APP"
+
+      - name: pyright
+        working-directory: python
+        run: uv run pyright "apps/$APP"
+
+      - name: lint-imports
+        working-directory: python
+        run: uv run lint-imports --config "apps/$APP/pyproject.toml"
+
+      - name: pytest
+        working-directory: python
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run --directory "apps/$APP" pytest -v --tb=short

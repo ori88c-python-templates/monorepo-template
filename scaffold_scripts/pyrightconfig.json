@@ -1,0 +1,9 @@
+{
+  "include": ["."],
+  "extraPaths": [".", "../python/packages/config/src"],
+  "venvPath": "../python",
+  "venv": ".venv",
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": true
+}

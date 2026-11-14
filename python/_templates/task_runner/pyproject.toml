@@ -1,0 +1,135 @@
+[project]
+name = "task-runner-template"
+version = "1.0.0"
+description = "Task-runner blueprint for a scoped job that talks to async resources: async client lifecycle, structured logging, and config, with the task written in TaskRunner.run(). Import package app. The installed app renames it."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "aiofiles~=25.1.0",
+    "github-client",
+    "githubkit~=0.17.1",
+    "shared-config",
+    "shared-distribution",
+    "shared-log-manager",
+]
+
+[project.scripts]
+app = "app.main:main"
+
+[tool.monorepo]
+type = "task_runner"
+
+[dependency-groups]
+dev = [
+    "httpx~=0.28.1",
+    "pytest~=9.2.0",
+    "pytest-asyncio~=1.5.0",
+]
+
+[tool.uv.sources]
+github-client = { path = "../../packages/github_client" }
+shared-config = { path = "../../packages/config" }
+shared-distribution = { path = "../../packages/distribution" }
+shared-log-manager = { path = "../../packages/log_manager" }
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/e2e"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "e2e: the whole process, from main to exit code",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "ANN",
+    "S",
+    "B",
+    "A",
+    "C4",
+    "DTZ",
+    "T20",
+    "PT",
+    "RET", "SIM", "ARG",
+    "PTH",
+    "ERA",
+    "PL", "TRY", "RUF",
+]
+ignore = [
+    "ANN401",
+    "TRY003",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "app",
+    "github_client",
+    "shared_config",
+    "shared_distribution",
+    "shared_log_manager",
+    "tests",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/app/config/*.py" = ["N802"]
+"tests/**/*.py" = ["S101", "S105", "S106", "S603", "PLR2004", "TRY301"]
+
+[tool.pyright]
+pythonVersion = "3.14"
+include = ["src", "tests"]
+extraPaths = ["src", "."]
+venvPath = "../../"
+venv = ".venv"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = true
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The app is a one-directional stack"
+type = "layers"
+exhaustive = true
+containers = ["app"]
+layers = [
+    "main",
+    "lifecycle",
+    "task_runner",
+    "state",
+    "services",
+    "config",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing below the runner knows the web framework"
+type = "forbidden"
+source_modules = [
+    "app.services",
+    "app.config",
+]
+forbidden_modules = ["fastapi", "fastmcp", "starlette"]

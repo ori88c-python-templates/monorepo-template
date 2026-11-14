@@ -1,0 +1,33 @@
+---
+description: Test layout, nearest fixtures, and the ban on monkeypatching
+globs: python/**/tests/**/*.py
+alwaysApply: false
+---
+
+# Tests
+
+App tests live under `tests/unit/`, `tests/integration/`, or `tests/e2e/`. Inside each tree, mirror the source: one directory per package, then one per component, then one file per behavior (`tests/unit/services/feature_flag_service/test_get_flag.py`).
+
+Package tests are `tests/<module>/test_<feature>.py`. `shared_config` stays flat in `tests/unit/test_*.py`. Never let one file accumulate every test for a component.
+
+Do not add `tests/__init__.py` outside `shared_log_manager`. A second one collides during collection, because pytest treats every `tests` package as the same top-level name. `github_client` also must not gain `tests/github_client/__init__.py`: pytest would import that folder as `github_client`. Its fakes stay in `tests/fakes`, and that directory is the only `pythonpath` entry. Do not put `tests/` itself on `pythonpath` or on pyright `extraPaths`.
+
+Shared fixtures go in the nearest `conftest.py`. Do not copy a fixture into a second file when the parent conftest already provides it.
+
+`sink`, `log_manager`, and `make_manager` come from `shared_log_manager`. Do not define them again. Read a buffer with `read_records` from `shared_log_manager.testing`. `LogManager(...)` belongs only in that package's own suite. A loader in a test takes `env_file=None` or a temp file, not the repo `.env`. Unit tests do not install process hooks (`sys.excepthook`, the root stdlib logger, signal handlers).
+
+`monkeypatch`, `unittest.mock.patch`, and reassigning module or instance attributes are forbidden. Inject the dependency.
+
+```python
+# BAD
+monkeypatch.setattr(service, "_redis", fake_redis)
+
+# GOOD
+service = FeatureFlagService(redis=fake_redis, logger=logger)
+```
+
+An `AsyncMock` handed to a constructor is injection. `patch("some.module.Client")` is not.
+
+Assert on observable output, not on whether a mock of the thing under test was called. Name the test as the guarantee: `test_records_below_the_minimum_level_are_dropped`.
+
+How a template reaches a real store, and where its heavy fixture lives, is that template's `tests.mdc`.

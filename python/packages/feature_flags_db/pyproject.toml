@@ -1,0 +1,23 @@
+[project]
+name = "feature-flags-db"
+version = "1.0.0"
+description = "Schema and Alembic history for the feature_flags database. No service."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "MIT"
+dependencies = [
+    "alembic~=1.20.1",
+    "psycopg[binary]~=3.3.8",
+    "shared-config",
+    "sqlalchemy~=2.1.8",
+]
+
+[tool.uv.sources]
+shared-config = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "feature_flags_db"

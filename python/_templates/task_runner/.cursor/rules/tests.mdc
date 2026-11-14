@@ -1,0 +1,15 @@
+---
+description: Task-runner lifecycle fixture and the subprocess end-to-end test
+globs: tests/**/*.py
+alwaysApply: false
+---
+
+# Task-runner tests
+
+Layout, the ban on patching, and the shared log fixture are in the root tests rule.
+
+`lifecycle_manager` lives in `tests/unit/lifecycle/lifecycle_manager/conftest.py`, next to the only suite that uses it. It passes `stream=sink` and `github=mock_github().github` into `LifecycleManager`. The manager still constructs `GithubClient`. The fixture does not call `install_process_logging`.
+
+`TaskRunner` tests build `AppServices` from `AsyncMock(spec=...)` services. The runner's observable output is the order and arguments of those calls, plus what it logs. Do not mock `TaskRunner` itself.
+
+End-to-end is the exception for process hooks. It runs `from app.main import main` in a subprocess, so `sys.excepthook` and the stdlib bridge stay in the child. `add_app.py` rewrites `from app.` to the installed import name. There is no `tests/integration/` tree: the live GitHub search lives in `github_client`.

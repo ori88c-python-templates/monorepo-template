@@ -1,0 +1,107 @@
+"""Cache-aside reads: hit, miss that loads PostgreSQL, miss that is missing."""
+
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from app.models.feature_flags import FeatureFlag
+from app.models.user_details import UserDetails
+from app.services import FeatureFlagNotFoundError, FeatureFlagService
+from feature_flags_db import FeatureFlagRow
+
+_NAME = "dark_mode"
+_CALLER = UserDetails(tenant_id="tenant-a", user_id="user-1")
+_OTHER = UserDetails(tenant_id="tenant-b", user_id="user-2")
+_FLAG = FeatureFlag(
+    name=_NAME,
+    enabled=True,
+    updated_at=datetime(2026, 1, 15, 12, 0, tzinfo=UTC),
+    updated_by_user_id=_CALLER.user_id,
+)
+_CACHE_TTL_SECONDS = 300
+
+
+async def test_get_returns_the_cached_flag_without_touching_postgres(
+    feature_flag_service: FeatureFlagService,
+    redis_client: AsyncMock,
+    postgres_client: MagicMock,
+) -> None:
+    """A Redis hit is the flag; the database session is never opened."""
+    redis_client.get_string.return_value = _FLAG.model_dump_json()
+
+    flag = await feature_flag_service.get_flag(_NAME, _CALLER)
+
+    assert flag == _FLAG
+    postgres_client.create_session.assert_not_called()
+    redis_client.set_string.assert_not_called()
+
+
+async def test_get_loads_postgres_on_a_cache_miss_and_populates_redis(
+    feature_flag_service: FeatureFlagService,
+    redis_client: AsyncMock,
+    postgres_session: AsyncMock,
+) -> None:
+    """A miss loads the row, returns it as a flag, and writes the cache with TTL."""
+    redis_client.get_string.return_value = None
+    postgres_session.get.return_value = FeatureFlagRow(
+        tenant_id=_CALLER.tenant_id,
+        name=_NAME,
+        value=True,
+        updated_at=_FLAG.updated_at,
+        updated_by_user_id=_CALLER.user_id,
+    )
+
+    flag = await feature_flag_service.get_flag(_NAME, _CALLER)
+
+    assert flag == _FLAG
+    postgres_session.get.assert_awaited_once_with(
+        FeatureFlagRow,
+        (_CALLER.tenant_id, _NAME),
+    )
+    redis_client.set_string.assert_awaited_once_with(
+        "feature_flag",
+        _CALLER.tenant_id,
+        _NAME,
+        value=_FLAG.model_dump_json(),
+        ttl_seconds=_CACHE_TTL_SECONDS,
+    )
+
+
+async def test_get_raises_when_the_flag_is_in_neither_store(
+    feature_flag_service: FeatureFlagService,
+    redis_client: AsyncMock,
+    postgres_session: AsyncMock,
+) -> None:
+    """A miss with no row is an error, not a disabled flag, and does not cache."""
+    redis_client.get_string.return_value = None
+    postgres_session.get.return_value = None
+
+    with pytest.raises(FeatureFlagNotFoundError) as caught:
+        await feature_flag_service.get_flag("missing", _CALLER)
+
+    assert caught.value.name == "missing"
+    redis_client.set_string.assert_not_called()
+
+
+async def test_get_looks_up_only_the_callers_tenant(
+    feature_flag_service: FeatureFlagService,
+    redis_client: AsyncMock,
+    postgres_session: AsyncMock,
+) -> None:
+    """Another tenant's name is a different cache key and a different row identity."""
+    redis_client.get_string.return_value = None
+    postgres_session.get.return_value = None
+
+    with pytest.raises(FeatureFlagNotFoundError):
+        await feature_flag_service.get_flag(_NAME, _OTHER)
+
+    redis_client.get_string.assert_awaited_once_with(
+        "feature_flag",
+        _OTHER.tenant_id,
+        _NAME,
+    )
+    postgres_session.get.assert_awaited_once_with(
+        FeatureFlagRow,
+        (_OTHER.tenant_id, _NAME),
+    )

@@ -1,0 +1,25 @@
+---
+description: Zero global state. Only lifecycle and main construct the graph.
+globs: python/**/*.py
+alwaysApply: false
+---
+
+# Invariants
+
+`lifecycle/` is the composition root. `main.py` constructs `AppConfig` and `LifecycleManager` only.
+
+Everywhere else, take clients, services, and loggers on `__init__`. Do not construct `AppConfig`, a client, a service, or `LogManager` there.
+
+No module-level I/O objects and no `structlog.configure()`.
+
+```python
+# BAD - the service constructs its dependency
+class FeatureFlagService:
+    def __init__(self, config: RedisConfig) -> None:
+        self._redis = RedisClient(config)
+
+# GOOD - injected
+class FeatureFlagService:
+    def __init__(self, redis: RedisClient) -> None:
+        self._redis = redis
+```

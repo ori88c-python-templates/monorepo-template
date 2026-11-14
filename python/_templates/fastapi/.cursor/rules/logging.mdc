@@ -1,0 +1,27 @@
+---
+description: FastAPI route loggers, request-scoped fields, and uvicorn bridges
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# FastAPI logging
+
+Injected loggers and the event-name style are in the root logging rule. This file is only the HTTP surface.
+
+If a route logs, the logger is a `RouteLogger` argument. Do not call `get_child_logger` inside the handler. `RouteLogger` names the child after the route's FastAPI `name=`. Set `name=` explicitly.
+
+```python
+@feature_flag_router.get("/{name}", name="feature-flag-router.get")
+async def get_feature_flag(
+    name: str,
+    user_details: UserDetailsDep,
+    service: Annotated[FeatureFlagService, Depends(get_feature_flag_service)],
+    logger: RouteLogger,
+) -> FeatureFlag:
+    logger.info("feature_flag.get", name=name)
+    return await service.get_flag(name, user_details)
+```
+
+`get_user_details` is an async generator. FastAPI enters it before the handler and exits it after the response. Do not decorate it with `@asynccontextmanager`. It binds `tenant_id` and `user_id` with `bound_contextvars`. Do not pass those on each `info()`. Pass the yielded `UserDetails` into the service method.
+
+Uncaught HTTP errors are the `uvicorn`, `asyncio`, and `sys.excepthook` children. Install the uvicorn bridges from `main` via `LifecycleManager`, not from `create_app`. Do not call `install_fastmcp_logging` or `install_stdlib_log_bridge`.

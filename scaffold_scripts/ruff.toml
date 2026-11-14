@@ -1,0 +1,41 @@
+line-length = 100
+src = [".", "tests"]
+
+[format]
+quote-style = "double"
+docstring-code-format = true
+line-ending = "lf"
+
+[lint]
+select = [
+    "F", "E", "W",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "ANN",
+    "S",
+    "B",
+    "A",
+    "C4",
+    "DTZ",
+    "T20",
+    "PT",
+    "RET", "SIM", "ARG",
+    "PTH",
+    "ERA",
+    "PL", "TRY", "RUF",
+]
+ignore = [
+    "ANN401",
+    "TRY003",
+]
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+known-first-party = ["helpers", "support"]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S603", "PLR2004", "TRY301"]

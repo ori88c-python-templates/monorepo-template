@@ -1,0 +1,44 @@
+# One Redis and one Postgres for local development. Run from the repository root:
+#   docker compose up --build
+#
+# No app ships with the template. `scaffold_scripts/add_app.py` creates one;
+# `.cursor/skills/scaffold-scripts/SKILL.md` describes the service to add here
+# for it, and the one-shot migrate service a logical database needs.
+#
+# Host processes keep 127.0.0.1 from .env. Containers override the hostnames
+# so they use the Compose network. Postgres creates feature_flags, the logical
+# database that `python/packages/feature_flags_db` owns.
+
+name: python-monorepo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES__USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES__PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES__FEATURE_FLAGS__DATABASE:-feature_flags}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

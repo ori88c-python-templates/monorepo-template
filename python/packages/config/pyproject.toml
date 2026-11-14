@@ -1,0 +1,18 @@
+[project]
+name = "shared-config"
+version = "1.0.0"
+description = "Reusable sub-config models. Each app composes its own AppConfig from these loaders."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "MIT"
+dependencies = [
+    "pydantic~=2.14.3",
+    "pydantic-settings~=2.16.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "shared_config"

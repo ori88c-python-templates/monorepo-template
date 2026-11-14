@@ -1,0 +1,13 @@
+---
+description: Task-runner path settings. This app has no server port.
+globs: src/**/config/**/*.py
+alwaysApply: false
+---
+
+# Task-runner configuration
+
+Field names, units, and `AppConfig` are in the root config rule.
+
+This app has no `<APP>__SERVER__PORT`. GitHub settings come from `load_github_client_config` in `shared_config`. The CSV directory comes from `load_github_report_config`.
+
+A filesystem path is a `str` checked for shape, not existence. A property returns the `Path` the consumer uses. `OUTPUT_DIR_PATH` is only the directory. `REPORT_PATH` adds the dated filename. A directory that does not exist yet is still valid.

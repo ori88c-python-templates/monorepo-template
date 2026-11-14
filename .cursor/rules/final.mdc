@@ -1,0 +1,27 @@
+---
+description: Annotate never-reassigned module constants and instance attributes with Final
+globs: python/**/*.py
+alwaysApply: false
+---
+
+# Final
+
+Annotate with `typing.Final` anything assigned once and never reassigned.
+
+Required for module-level constants and for instance attributes set in `__init__` and never rebound. Prefer bare `Final` and let the type be inferred:
+
+```python
+_MESSAGE_KEY: Final = "msg"
+
+class LogManager:
+    def __init__(self) -> None:
+        self._processors: Final = self._build_processors()
+```
+
+`Final` freezes the name, not the object. A `Final` list can still be appended to. Spell the type out only when it adds a restriction inference would not:
+
+```python
+_RETRY_BUDGETS: Final[Mapping[str, int]] = {"redis": 3}  # Mapping blocks mutation
+```
+
+Do not use it on Pydantic model fields, on locals unless rebinding is a real risk, or on anything genuinely reassigned.

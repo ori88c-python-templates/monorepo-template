@@ -1,0 +1,108 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  select:
+    name: Select
+    runs-on: ubuntu-24.04
+    outputs:
+      packages: ${{ steps.affected.outputs.packages }}
+      app_suites: ${{ steps.affected.outputs.app_suites }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch diff base
+        if: github.event_name == 'pull_request' || github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: git fetch --no-tags origin "$DIFF_BASE"
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: Selector tests
+        working-directory: python
+        run: uv run pytest ../ci_scripts/tests -v --tb=short
+
+      - name: Select affected members
+        id: affected
+        working-directory: python
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: uv run python ../ci_scripts/select_affected.py --repo-root .. --github-output "$GITHUB_OUTPUT"
+
+  test-packages:
+    name: Package ${{ matrix.package }}
+    needs: select
+    if: needs.select.outputs.packages != '[]'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.select.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          save-cache: false
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: pytest
+        working-directory: python
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run pytest packages/${{ matrix.package }}/tests -v --tb=short
+
+  test-apps:
+    name: App ${{ matrix.app_suite.app }} (${{ matrix.app_suite.suite }})
+    needs: select
+    if: needs.select.outputs.app_suites != '[]'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        app_suite: ${{ fromJson(needs.select.outputs.app_suites) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          save-cache: false
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: pytest
+        working-directory: python
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run --directory apps/${{ matrix.app_suite.app }} pytest tests/${{ matrix.app_suite.suite }} -v --tb=short

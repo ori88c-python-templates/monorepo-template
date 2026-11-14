@@ -1,0 +1,15 @@
+---
+description: Task-runner stdlib bridge and the hooks installed from main
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Task-runner logging
+
+Injected loggers and the event-name style are in the root logging rule. This file is only the process hooks.
+
+`LifecycleManager.install_process_logging`, called from `main`, installs `sys.excepthook` and `install_stdlib_log_bridge`. The bridge attaches to the root stdlib logger at WARNING. SDK warnings come out as JSON with `context="stdlib"` and `stdlib_logger` naming the library. To hear more from one library, raise that library's named logger. Do not lower the root, and do not call the uvicorn or FastMCP installers.
+
+A field that holds for a stretch of the run is bound once with `bound_contextvars` around that work. Do not repeat it on each `info()`.
+
+Uncaught errors are the `sys.excepthook` child (installed from `main`, after teardown) and the `asyncio` child (scoped to `create_task_runner`). Do not wrap the run in `try` / `except` for that.

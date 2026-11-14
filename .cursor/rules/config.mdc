@@ -1,0 +1,25 @@
+---
+description: Config fields match env names; durations are ints with a unit suffix
+globs: python/**/config/**/*.py,python/**/*_config.py
+alwaysApply: false
+---
+
+# Configuration
+
+Resource models use `ALL_CAPS` fields that match env leaves (`POSTGRES__HOST`).
+
+`AppConfig` stays in the app. It is a plain model, not a `BaseSettings` root. One settings root cannot mix unprefixed `REDIS__*` with `BILLING_API__SERVER__*`. Shared unprefixed blocks come from `shared_config`: `create_logger_config`, `load_redis_config`, `create_postgres_config`, `create_server_config`, `create_mcp_config`, `load_prometheus_config`, `load_feature_flag_config`, and `load_environment`. `load_app_resource` is only for a model the app or a client package owns.
+
+A duration, timeout, or TTL is an `int` whose name ends in `_SECONDS` or `_MS` for the unit the client library takes. Do not use `timedelta`, and do not convert under the hood.
+
+```python
+# BAD
+COMMAND_TIMEOUT: timedelta = Field(default=timedelta(seconds=5))
+# later: int(timeout.total_seconds() * 1000)
+
+# GOOD
+CONNECT_TIMEOUT_SECONDS: int = Field(default=5, ge=1)   # redis-py / libpq
+STATEMENT_TIMEOUT_MS: int = Field(default=5000, ge=1)  # PostgreSQL statement_timeout
+```
+
+Secrets are `SecretStr`. A connection URL is a property so `model_dump()` cannot include it.

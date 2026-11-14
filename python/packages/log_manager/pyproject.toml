@@ -1,0 +1,29 @@
+[project]
+name = "shared-log-manager"
+version = "1.0.0"
+description = "Injectable structured logging. Does not depend on FastAPI or FastMCP."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+license = "MIT"
+dependencies = [
+    "shared-config",
+    "structlog~=26.1.0",
+]
+
+[project.entry-points.pytest11]
+shared_log_manager = "shared_log_manager.testing"
+
+[dependency-groups]
+dev = [
+    "fastmcp~=4.2.0",
+]
+
+[tool.uv.sources]
+shared-config = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "shared_log_manager"

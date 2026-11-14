@@ -1,0 +1,35 @@
+---
+description: Loggers are injected. The composition root is the only place that builds them.
+globs: python/**/*.py
+alwaysApply: false
+---
+
+# Logging
+
+Every component receives its own named child logger through its constructor. `LogManager` comes from `shared_log_manager`. Only the composition root calls `get_child_logger`.
+
+```python
+# BAD
+log = structlog.get_logger()
+
+class UsersService:
+    def create(self, email: str) -> None:
+        log.info(f"created {email}")
+
+# GOOD
+class UsersService:
+    def __init__(self, logger: FilteringBoundLogger) -> None:  # structlog.typing
+        self._logger = logger
+
+    def create(self, email: str) -> None:
+        self._logger.info("user.created", email=email)
+
+# composition root, once
+users_service = UsersService(log_manager.get_child_logger("UsersService"))
+```
+
+Never `structlog.configure()`, `logging.getLogger(__name__)`, a module-level logger, or a component that constructs `LogManager`. `bound_contextvars` is allowed: the `with` block unbinds the fields. Do not log `correlation_id`, `env`, `app`, `instance`, or `app.version` as call-site kwargs; the manager stamps them. Do not log a `SecretStr`, a `.get_secret_value()` result, or an assembled DSN.
+
+The message is a short lowercase dotted event name (`"redis.connect.failed"`), never an f-string. Variable data goes in kwargs. Use `.exception(...)` inside `except`. Uncaught hooks use `.error(..., exc_info=exc)` because they are not inside the original `except`.
+
+Which process hooks an app installs, and how a route or a primitive gets its logger, is that template's `logging.mdc`.

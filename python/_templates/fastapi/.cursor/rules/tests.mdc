@@ -1,0 +1,13 @@
+---
+description: FastAPI test stores, the shared client fixtures, and HTTP end-to-end tests
+globs: tests/**/*.py
+alwaysApply: false
+---
+
+# FastAPI tests
+
+Layout, the ban on patching, and the shared log fixture are in the root tests rule.
+
+`throwaway_stores` lives in `tests/conftest.py` and is not autouse. Unit tests never request it, so `pytest tests/unit` starts no containers. Integration talks to Redis and PostgreSQL through that fixture. End-to-end is HTTP through the real app against the same stores. A later test reuses the fixture instead of starting another container.
+
+`tests/unit/conftest.py` owns one `redis_client` (`AsyncMock(spec=RedisClient)`) and one `postgres_client`. Every unit service and route test in the app requests those. Do not construct a second `AsyncMock(spec=...)` for the same client. The postgres fixture is a `MagicMock`: `create_session` is synchronous, `session.add` is a `MagicMock`, and `ping` is an `AsyncMock`. `AsyncMock(spec=PostgresClient)` makes `create_session()` awaitable and breaks `async with`.
